@@ -1,6 +1,8 @@
 # Copyright (c) 2025 CuspAI
 # All rights reserved.
 
+import logging
+
 from ase import Atoms
 from ase.build import molecule
 from ase.calculators.calculator import Calculator
@@ -11,6 +13,8 @@ from .analyze import (
 )
 from .sample_compute_energies import sample_compute_energies
 from .utils import optimize_atoms
+
+logger = logging.getLogger(__name__)
 
 
 def run_widom_insertion(
@@ -54,7 +58,7 @@ def run_widom_insertion(
 
     # Optionally optimize structures
     if optimize_structures:
-        print("Optimizing structure...")
+        logger.info("Optimizing structure...")
         optimized_structure = optimize_atoms(
             calculator=calculator,
             atoms=structure,
@@ -62,7 +66,7 @@ def run_widom_insertion(
         if optimized_structure is None:
             raise ValueError("Structure optimization failed.")
 
-        print("Optimizing gas molecule...")
+        logger.info("Optimizing gas molecule...")
         optimized_gas = optimize_atoms(
             calculator=calculator,
             atoms=gas_atoms,
@@ -75,7 +79,7 @@ def run_widom_insertion(
         optimized_gas = gas_atoms
 
     # Run Widom insertion
-    print(f"Running Widom insertion with {num_insertions} insertions...")
+    logger.info(f"Running Widom insertion with {num_insertions} insertions...")
     energies, is_accessible, gas_positions = sample_compute_energies(
         calculator=calculator,
         structure=optimized_structure,
@@ -89,14 +93,14 @@ def run_widom_insertion(
 
     energy_structure = calculator.get_potential_energy(optimized_structure)
     energy_gas = calculator.get_potential_energy(optimized_gas)
-    print(f"Energy of structure: {energy_structure} eV")
-    print(f"Energy of gas: {energy_gas} eV")
+    logger.info(f"Energy of structure: {energy_structure} eV")
+    logger.info(f"Energy of gas: {energy_gas} eV")
 
     assert energy_structure is not None, "Energy of the structure must be computed."
     assert energy_gas is not None, "Energy of the gas molecule must be computed."
 
     # Analyze results
-    print("Analyzing results...")
+    logger.info("Analyzing results...")
     results = analyze_widom_insertions(
         energies=energies,
         is_accessible=is_accessible,
@@ -110,6 +114,6 @@ def run_widom_insertion(
         min_interaction_energy=min_interaction_energy,
     )
 
-    print("Results:")
-    print(results)
+    logger.info("Results:")
+    logger.info(results)
     return results
