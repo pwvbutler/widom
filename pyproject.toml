@@ -1,7 +1,10 @@
 [project]
 name = "widom"
 version = "0.1.0"
-authors = [{ name = "Pim de Haan", email = "pim@cusp.ai" }]
+authors = [
+    { name = "Pim de Haan", email = "pim@cusp.ai" },
+    { name = "CuspAI OpenSource Team", email = "opensource@cusp.ai" },
+]
 description = "A Python package for performing Widom insertion simulations to calculate gas adsorption properties in porous materials"
 readme = "README.md"
 license = "Apache-2.0"
