@@ -1,3 +1,6 @@
+# Copyright (c) 2025 CuspAI
+# All rights reserved.
+
 import numpy as np
 from ase import Atoms
 from ase.calculators.calculator import Calculator

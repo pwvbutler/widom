@@ -1,3 +1,6 @@
+# Copyright (c) 2025 CuspAI
+# All rights reserved.
+
 import numpy as np
 import pytest
 from ase import Atoms

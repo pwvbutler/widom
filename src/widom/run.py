@@ -1,3 +1,6 @@
+# Copyright (c) 2025 CuspAI
+# All rights reserved.
+
 from ase import Atoms
 from ase.build import molecule
 from ase.calculators.calculator import Calculator

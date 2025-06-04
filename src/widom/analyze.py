@@ -1,3 +1,6 @@
+# Copyright (c) 2025 CuspAI
+# All rights reserved.
+
 """
 The code in this file is derived from
 https://github.com/hspark1212/DAC-SIM

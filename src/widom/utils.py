@@ -1,3 +1,6 @@
+# Copyright (c) 2025 CuspAI
+# All rights reserved.
+
 from typing import Optional
 
 import numpy as np

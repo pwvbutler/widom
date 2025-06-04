@@ -1,3 +1,6 @@
+# Copyright (c) 2025 CuspAI
+# All rights reserved.
+
 """Integration tests for the widom package.
 
 This module contains tests that verify the full functionality of the widom package,
