@@ -1,6 +1,6 @@
 # Widom
 
-A Python package for performing Widom insertion simulations to calculate gas adsorption properties in porous materials like metal-organic frameworks (MOFs).
+A Python package developed by CuspAI for performing Widom insertion simulations to calculate gas adsorption properties in porous materials like metal-organic frameworks (MOFs).
 
 ## Overview
 
@@ -8,9 +8,9 @@ Widom insertion is a Monte Carlo method used to calculate thermodynamic properti
 
 - **Henry coefficient** (mol/kg/Pa) - measure of gas affinity to a material at low pressure
 - **Heat of adsorption** (kJ/mol) - enthalpy change associated with the adsorption of a single gas molecule
-- **Interaction energies** - energy of gas-framework interactions
+- **Interaction energies** (eV) - energy of gas-framework interactions
 
-The implementation is derived from [DAC-SIM](https://github.com/hspark1212/DAC-SIM) and is designed to work with any ASE-compatible calculator for energy evaluations.
+The implementation is derived from [DAC-SIM](https://github.com/hspark1212/DAC-SIM) [1] and is designed to work with any ASE-compatible calculator for energy evaluations.
 
 ## Features
 
@@ -120,7 +120,11 @@ Run tests:
 pytest tests/
 ```
 
+## References
+
+[1] Park, H. S., et al. "DAC-SIM: A Machine Learning Approach to Predicting Gas Adsorption in Metal-Organic Frameworks." *ChemRxiv* (2024). DOI: [10.26434/chemrxiv-2024-7w6g6](https://chemrxiv.org/engage/chemrxiv/article-details/6759b06df9980725cfbc8cef)
+
 ## License
 
 Apache 2.0 licensed.
-Some parts are derived from [DAC-SIM](https://github.com/hspark1212/DAC-SIM), which is MIT licensed.
+Some parts are derived from [DAC-SIM](https://github.com/hspark1212/DAC-SIM) [1], which is MIT licensed.

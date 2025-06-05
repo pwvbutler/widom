@@ -51,6 +51,29 @@ def run_widom_insertion(
         random_seed: Seed for random number generator to ensure reproducibility.
         min_interaction_energy: Minimum valid interaction energy for the gas molecule, in eV.
 
+    Example:
+        >>> from widom import run_widom_insertion
+        >>> from ase.build import bulk
+        >>> from ase.calculators.lj import LennardJones
+        >>>
+        >>> calculator = LennardJones(epsilon=1, sigma=0.6)  # Example calculator
+        >>> structure = bulk("Si")  # Example structure
+        >>>
+        >>> # Run Widom insertion simulation
+        >>> results = run_widom_insertion(
+        ...     calculator=calculator,
+        ...     structure=structure,
+        ...     gas="CO2",
+        ...     temperature=298.15,  # K
+        ...     model_outputs_interaction_energy=False,
+        ...     num_insertions=1000,
+        ...     random_seed=42,
+        ... )
+        >>>
+        >>> # Access results
+        >>> print(f"Henry coefficient: {results.henry_coefficient:.2e} mol/kg/Pa")
+        >>> print(f"Heat of adsorption: {results.heat_of_adsorption:.2f} kJ/mol")
+
     Returns:
         Results containing Henry coefficient, heat of adsorption, and other computed properties.
     """
