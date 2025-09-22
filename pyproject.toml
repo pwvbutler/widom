@@ -1,6 +1,6 @@
 [project]
 name = "widom"
-version = "0.1.0"
+version = "0.1.1"
 authors = [
     { name = "Pim de Haan", email = "pim@cusp.ai" },
     { name = "CuspAI OpenSource Team", email = "opensource@cusp.ai" },
