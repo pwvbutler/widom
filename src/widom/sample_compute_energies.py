@@ -6,7 +6,10 @@ from ase import Atoms
 from ase.calculators.calculator import Calculator
 from tqdm_loggable.auto import tqdm
 
-from widom.utils import check_accessibility, create_supercell_if_needed, sample_gas_positions
+from .structure_preparation import (
+    create_combined_structure,
+    prepare_structures_for_insertion,
+)
 
 
 def sample_compute_energies(
@@ -41,22 +44,19 @@ def sample_compute_energies(
             - Array of booleans indicating whether the insertion was successful (non-overlapping with framework atoms).
             - Array of positions of the inserted gas molecules.
     """
+    # Make copies to avoid modifying input
     structure = structure.copy()
     gas = gas.copy()
 
-    # Create supercell if needed
-    structure = create_supercell_if_needed(structure, min_interplanar_distance)
-
-    # Set up random number generator
-    rng = np.random.default_rng(random_seed)
-    # Sample gas positions and orientations
-    gas_positions = sample_gas_positions(structure, gas, num_insertions, rng)
-
-    # Check accessibility of insertions
-    framework_coords = structure.get_positions()
-    lattice_matrix = np.array(structure.cell)  # 3x3 matrix
-    is_accessible = check_accessibility(
-        gas_positions, framework_coords, lattice_matrix, cutoff_distance, cutoff_to_com
+    # Use common preparation function
+    structure_supercell, gas_positions, is_accessible = prepare_structures_for_insertion(
+        structure=structure,
+        gas=gas,
+        num_insertions=num_insertions,
+        cutoff_distance=cutoff_distance,
+        cutoff_to_com=cutoff_to_com,
+        min_interplanar_distance=min_interplanar_distance,
+        random_seed=random_seed,
     )
 
     print(f"Number of accessible positions: {np.sum(is_accessible)} out of {num_insertions}")
@@ -67,14 +67,19 @@ def sample_compute_energies(
     # Set inaccessible positions to high energy
     energies[~is_accessible] = 1e10
 
-    # Batch evaluate energies for accessible positions only
+    # Evaluate energies for accessible positions only
     accessible_indices = np.where(is_accessible)[0]
-    structure_with_gas_original = structure + gas
+
     for i in tqdm(accessible_indices):
-        structure_with_gas = structure_with_gas_original.copy()
-        structure_with_gas.arrays["positions"][-len(gas) :] = gas_positions[i]
-        structure_with_gas.wrap()  # wrap atoms to unit cell
-        structure_with_gas.calc = calculator
-        energies[i] = structure_with_gas.get_potential_energy()  # [eV]
+        # Create combined structure using common function
+        combined = create_combined_structure(
+            structure_supercell,
+            gas,
+            gas_positions[i]
+        )
+
+        # Calculate energy
+        combined.calc = calculator
+        energies[i] = combined.get_potential_energy()  # [eV]
 
     return energies, is_accessible, gas_positions  # [eV]
