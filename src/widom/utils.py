@@ -12,6 +12,122 @@ from ase.optimize import FIRE
 from pymatgen.optimization.neighbors import find_points_in_spheres
 
 
+def add_molecule(gas: Atoms, rotate: bool = True, translate: tuple = None) -> Atoms:
+    """Add a molecule to the simulation cell
+
+    Parameters
+    ----------
+    gas : Atoms
+        The gas molecule to add
+    rotate : bool, optional
+        If True, rotate the molecule randomly, by default True
+    translate : tuple, optional
+        The translation of the molecule, by default None
+
+    Returns
+    -------
+    Atoms
+        The gas molecule added to the simulation cell
+
+    Raises
+    ------
+    ValueError
+        If the translate is not a 3-tuple, raise an error
+
+    Examples
+    --------
+    >>> from ml_mc.utils import molecule, add_gas
+    >>> gas = molecule('H2O')
+    >>> gas = add_gas(gas, rotate=True, translate=(0, 0, 0))
+    """
+    gas = gas.copy()
+    if rotate:
+        angle = np.random.rand() * 360
+        axis = np.random.rand(3)
+        gas.rotate(v=axis, a=angle)
+    if translate is not None:
+        if len(translate) != 3:
+            raise ValueError("translate must be a 3-tuple")
+        gas.translate(translate)
+    return gas
+
+def generate_grid_positions(
+    structure: Atoms,
+    grid_spacing: float,
+    cutoff_distance: float,
+    max_distance: float,
+    min_interplanar_distance: float,
+) -> tuple[np.ndarray, np.ndarray]:
+    """
+    Generate a 3D grid of positions in the structure and filter by accessibility.
+
+    Args:
+        structure: ASE Atoms object (framework).
+        grid_spacing: Grid spacing in Angstrom.
+        cutoff_distance: Minimum distance grid point must be from host atoms.
+        max_distance: Maximum allowed distance from host atoms (None = no limit).
+        min_interplanar_distance: If interplanar spacing is too small, build a supercell.
+
+    Returns:
+        pos_grid: All grid points (N, 3).
+        accessible_pos: Accessible subset of grid points (M, 3).
+        structure: Possibly repeated supercell structure.
+    """
+    from .utils import create_supercell_if_needed
+
+    # Ensure structure is large enough
+    structure = create_supercell_if_needed(structure, min_interplanar_distance)
+    cell = np.array(structure.cell)
+    lengths = structure.cell.cellpar()[:3]
+
+    # Grid dimensions
+    grid_size = np.ceil(lengths / grid_spacing).astype(int)
+
+    # Cartesian positions
+    indices = np.indices(grid_size).reshape(3, -1).T  # (G, 3)
+    frac_grid = indices / grid_size
+    pos_grid = frac_grid @ cell  # (G, 3)
+
+    # Host coordinates
+    framework_coords = structure.get_positions()
+
+    # Convert ASE cell to format expected by find_points_in_spheres
+    pbc_array = np.array([1, 1, 1], dtype=np.int64)
+
+    # min distance (exclude too close)
+    _, close_indices, _, _ = find_points_in_spheres(
+        all_coords=pos_grid,
+        center_coords=framework_coords.astype(np.float64),
+        r=cutoff_distance,
+        pbc=pbc_array,
+        lattice=cell.astype(np.float64),
+        tol=1e-8,
+    )
+    too_close = set(close_indices)
+
+    # max distance (exclude too far)
+    too_far = set()
+    if max_distance is not None:
+        _, near_indices, _, _ = find_points_in_spheres(
+            all_coords=pos_grid,
+            center_coords=framework_coords.astype(np.float64),
+            r=max_distance,
+            pbc=pbc_array,
+            lattice=cell.astype(np.float64),
+            tol=1e-8,
+        )
+        valid_near = set(near_indices)
+        all_idx = set(range(len(pos_grid)))
+        too_far = all_idx - valid_near
+
+    # Accessible mask
+    invalid = too_close.union(too_far)
+    idx_accessible = [i for i in range(len(pos_grid)) if i not in invalid]
+    accessible_pos = pos_grid[idx_accessible]
+
+    return pos_grid, accessible_pos
+
+
 def sample_gas_positions(
     structure: Atoms,
     gas: Atoms,
@@ -108,7 +224,6 @@ def check_accessibility(
 
     too_far = set()
     if max_distance is not None:
-        # calculate the center of mass for each gas insertion
         gas_com_coords = np.mean(gas_positions, axis=1)
 
         # Find all gas coords that have at least one framework atom within max_distance
@@ -121,8 +236,12 @@ def check_accessibility(
             tol=1e-8,
         )
         valid_near = set(near_indices)
+        #if cutoff_to_com:
+        #    valid_near = set(near_indices)
+        #else:
+        #    valid_near = set(near_indices // num_gas_atoms)
 
-        # Too far is everything not in valid_near
+        # Too far = everything not in valid_near
         all_insertions = set(range(num_insertions))
         too_far = all_insertions - valid_near
 

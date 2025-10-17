@@ -6,11 +6,7 @@ from ase import Atoms
 from ase.calculators.calculator import Calculator
 from tqdm_loggable.auto import tqdm
 
-from .structure_preparation import (
-    create_combined_structure,
-    prepare_structures_for_insertion,
-)
-
+from widom.utils import check_accessibility, create_supercell_if_needed, sample_gas_positions, generate_grid_positions
 
 def sample_compute_energies(
     calculator: Calculator,
@@ -21,6 +17,8 @@ def sample_compute_energies(
     cutoff_to_com: bool,
     min_interplanar_distance: float,
     max_distance_to_host: float,
+    use_grid: bool,
+    grid_spacing: float,
     random_seed: int,
 ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     """Run the Widom insertion algorithm to calculate interaction energies.
@@ -37,6 +35,9 @@ def sample_compute_energies(
         cutoff_distance: Minimum allowed distance between framework atoms and gas molecule, in angstroms.
         cutoff_to_com: Whether to use the center of mass for distance calculations.
         min_interplanar_distance: Minimum interplanar distance before constructing a supercell, in angstroms.
+        max_distance_to_host: Maximum distance from gas to host atoms.
+        use_grid: Whether to use a grid-based sampling of positions.
+        grid_spacing: Spacing of the grid in angstroms.
         random_seed: Seed for random number generator to ensure reproducibility.
 
     Returns:
@@ -49,19 +50,62 @@ def sample_compute_energies(
     structure = structure.copy()
     gas = gas.copy()
 
-    # Use common preparation function
-    structure_supercell, gas_positions, is_accessible = prepare_structures_for_insertion(
-        structure=structure,
-        gas=gas,
-        num_insertions=num_insertions,
-        cutoff_distance=cutoff_distance,
-        cutoff_to_com=cutoff_to_com,
-        min_interplanar_distance=min_interplanar_distance,
-        max_distance_to_host=max_distance_to_host,
-        random_seed=random_seed,
-    )
+    # Supercell if needed
+    structure = create_supercell_if_needed(structure, min_interplanar_distance)
 
-    print(f"Number of accessible positions: {np.sum(is_accessible)} out of {num_insertions}")
+    if use_grid:
+        pos_grid, accessible_pos = generate_grid_positions(
+            structure,
+            grid_spacing=grid_spacing,
+            cutoff_distance=cutoff_distance,
+            max_distance=max_distance_to_host,
+            min_interplanar_distance=min_interplanar_distance,
+        )
+        print(f"Accessible grid positions: {len(accessible_pos)} / {len(pos_grid)}")
+
+        # sample grid positions with replacement
+        rng = np.random.default_rng(random_seed)
+        chosen_idx = rng.choice(len(accessible_pos), size=num_insertions, replace=True)
+        chosen_positions = accessible_pos[chosen_idx]
+
+        # Place gas COM at chosen positions
+        gas_positions = np.zeros((num_insertions, len(gas), 3))
+        for i, pos in enumerate(chosen_positions):
+            added_gas = gas.copy()
+            added_gas.cell = structure.cell
+            added_gas.pbc = structure.pbc
+
+            # randomly rotate gas molecule
+            angle = rng.random() * 360
+            axis = rng.random(3)
+            axis /= np.linalg.norm(axis)
+            added_gas.rotate(v=axis, a=angle)
+
+            # translate to grid position
+            added_gas.translate(pos)
+
+            # Wrap into cell
+            added_gas.wrap()
+            gas_positions[i] = added_gas.get_positions()
+
+        is_accessible = np.ones(num_insertions, dtype=bool)
+
+    else:
+        # Fallback to random sampling
+        rng = np.random.default_rng(random_seed)
+        gas_positions = sample_gas_positions(structure, gas, num_insertions, rng)
+        framework_coords = structure.get_positions()
+        lattice_matrix = np.array(structure.cell)
+        is_accessible = check_accessibility(
+            gas_positions,
+            framework_coords,
+            lattice_matrix,
+            cutoff_distance,
+            cutoff_to_com,
+            max_distance=max_distance_to_host,
+        )
+
+        print(f"Number of accessible positions: {np.sum(is_accessible)} out of {num_insertions}")
 
     # Prepare arrays for results
     energies = np.zeros(num_insertions)  # [eV], total energy
@@ -69,19 +113,14 @@ def sample_compute_energies(
     # Set inaccessible positions to high energy
     energies[~is_accessible] = 1e10
 
-    # Evaluate energies for accessible positions only
+    # Batch evaluate energies for accessible positions only
     accessible_indices = np.where(is_accessible)[0]
-
+    structure_with_gas_original = structure + gas
     for i in tqdm(accessible_indices):
-        # Create combined structure using common function
-        combined = create_combined_structure(
-            structure_supercell,
-            gas,
-            gas_positions[i]
-        )
-
-        # Calculate energy
-        combined.calc = calculator
-        energies[i] = combined.get_potential_energy()  # [eV]
+        structure_with_gas = structure_with_gas_original.copy()
+        structure_with_gas.arrays["positions"][-len(gas) :] = gas_positions[i]
+        structure_with_gas.wrap()  # wrap atoms to unit cell
+        structure_with_gas.calc = calculator
+        energies[i] = structure_with_gas.get_potential_energy()  # [eV]
 
     return energies, is_accessible, gas_positions  # [eV]
