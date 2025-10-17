@@ -42,6 +42,7 @@ def prepare_structures_for_insertion(
     cutoff_distance: float,
     cutoff_to_com: bool,
     min_interplanar_distance: float,
+    max_distance_to_host: float,
     random_seed: int,
 ) -> tuple[Atoms, np.ndarray, np.ndarray]:
     """
@@ -59,6 +60,7 @@ def prepare_structures_for_insertion(
         cutoff_distance: Minimum allowed distance
         cutoff_to_com: Whether to use center of mass for cutoff
         min_interplanar_distance: Minimum interplanar distance
+        max_distance_to_host: Maximum distance from gas to host atoms
         random_seed: Random seed for reproducibility
 
     Returns:
@@ -81,7 +83,8 @@ def prepare_structures_for_insertion(
         framework_coords,
         lattice_matrix,
         cutoff_distance,
-        cutoff_to_com
+        cutoff_to_com,
+        max_distance_to_host
     )
 
     return structure_supercell, gas_positions, is_accessible

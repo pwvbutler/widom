@@ -58,6 +58,7 @@ def check_accessibility(
     lattice_matrix: np.ndarray,
     cutoff_distance: float,
     cutoff_to_com: bool,
+    max_distance: float,
 ) -> np.ndarray:
     """Check which gas insertions are accessible (non-overlapping with framework atoms).
 
@@ -100,12 +101,34 @@ def check_accessibility(
 
     # Determine which insertions have overlaps
     if cutoff_to_com:
-        overlapping_insertions = set(all_coords_indices)
+        too_close = set(all_coords_indices)
     else:
         # all_coords_indices corresponds to gas atoms, divide by num_gas_atoms to get insertion index
-        overlapping_insertions = set(all_coords_indices // num_gas_atoms)
+        too_close = set(all_coords_indices // num_gas_atoms)
 
-    is_accessible = np.array([i not in overlapping_insertions for i in range(num_insertions)])
+    too_far = set()
+    if max_distance is not None:
+        # calculate the center of mass for each gas insertion
+        gas_com_coords = np.mean(gas_positions, axis=1)
+
+        # Find all gas coords that have at least one framework atom within max_distance
+        _, near_indices, _, _ = find_points_in_spheres(
+            all_coords=gas_com_coords,
+            center_coords=framework_coords.astype(np.float64),
+            r=float(max_distance),
+            pbc=pbc_array,
+            lattice=lattice_matrix.astype(np.float64),
+            tol=1e-8,
+        )
+        valid_near = set(near_indices)
+
+        # Too far is everything not in valid_near
+        all_insertions = set(range(num_insertions))
+        too_far = all_insertions - valid_near
+
+    # Combine constraints
+    invalid = too_close.union(too_far)
+    is_accessible = np.array([i not in invalid for i in range(num_insertions)])
 
     return is_accessible
 

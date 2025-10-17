@@ -26,6 +26,7 @@ def run_widom_insertion(
     num_insertions: int = 10000,
     optimize_structures: bool = False,
     cutoff_distance: float = 1.00,
+    max_distance_to_host: float = 20.0,
     cutoff_to_com: bool = False,  # Whether to use center of mass for cutoff
     min_interplanar_distance: float = 6.0,
     random_seed: int = 0,
@@ -110,6 +111,7 @@ def run_widom_insertion(
         num_insertions=num_insertions,
         cutoff_distance=cutoff_distance,
         cutoff_to_com=cutoff_to_com,
+        max_distance_to_host=max_distance_to_host,
         min_interplanar_distance=min_interplanar_distance,
         random_seed=random_seed,
     )

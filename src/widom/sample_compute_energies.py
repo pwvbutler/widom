@@ -20,6 +20,7 @@ def sample_compute_energies(
     cutoff_distance: float,
     cutoff_to_com: bool,
     min_interplanar_distance: float,
+    max_distance_to_host: float,
     random_seed: int,
 ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     """Run the Widom insertion algorithm to calculate interaction energies.
@@ -56,6 +57,7 @@ def sample_compute_energies(
         cutoff_distance=cutoff_distance,
         cutoff_to_com=cutoff_to_com,
         min_interplanar_distance=min_interplanar_distance,
+        max_distance_to_host=max_distance_to_host,
         random_seed=random_seed,
     )
 
